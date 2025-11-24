@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cliente API – Login</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="container">
+
+    <h1>Cliente API – Registro de Visitas</h1>
+
+    <div id="login-box">
+        <h2>Iniciar sesión</h2>
+
+        <label>Usuario:</label>
+        <input type="text" id="api-username" placeholder="usuario">
+
+        <label>Contraseña:</label>
+        <input type="password" id="api-password" placeholder="contraseña">
+
+        <button onclick="obtenerToken()">Ingresar</button>
+
+        <p id="login-message"></p>
+    </div>
+
+    <div id="panel-box" class="hidden">
+        <h2>Autenticado correctamente</h2>
+
+        <p><strong>Token:</strong></p>
+        <code id="token-display"></code>
+
+        <br><br>
+
+        <a href="dashboard.html" class="btn">Ir al Dashboard</a>
+        <button onclick="cerrarSesion()">Cerrar sesión</button>
+
+    </div>
+
+</div>
+
+<script src="cliente_api.js"></script>
+</body>
+</html>
