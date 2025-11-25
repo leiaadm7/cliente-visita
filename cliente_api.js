@@ -5,7 +5,7 @@ let chartInstance = null;
 async function obtenerToken() {
     const usernameInput = document.getElementById("api-username");
     const passwordInput = document.getElementById("api-password");
-
+    
     if (!usernameInput || !passwordInput) return;
 
     const username = usernameInput.value;
@@ -104,9 +104,7 @@ async function cargarVisitas() {
 
         const data = await res.json();
         const lista = Array.isArray(data) ? data : data.results || [];
-
         const hoy = new Date();
-        
         const elFechaHoy = document.getElementById("fecha-hoy");
         if (elFechaHoy) elFechaHoy.innerText = hoy.toLocaleDateString();
 
@@ -126,10 +124,11 @@ async function cargarVisitas() {
             if (esMismaFecha(v.fecha, hoy)) {
                 totalHoy++;
             }
-
             const tieneSalida = v.hora_salida !== null && v.hora_salida !== "";
-            
-            if (tieneSalida) {
+            const estadoTexto = v.estado ? v.estado.trim().toUpperCase() : "";
+            const esFinal = (tieneSalida || estadoTexto.includes("FINAL"));
+
+            if (esFinal) {
                 finalizadas++;
             } else {
                 activas++;
@@ -151,13 +150,15 @@ async function cargarVisitas() {
                     celdaSalidaClass = "text-right";
                 }
 
-                const estadoBadge = tieneSalida
+                const estadoBadge = esFinal
                     ? `<span class="bg-gray-100 text-gray-500 border border-gray-200 px-3 py-1 rounded-full text-xs flex items-center justify-center gap-1.5 w-28 mx-auto">
                          <i class="bi bi-check2-circle"></i> Finalizada
                        </span>`
                     : `<span class="bg-emerald-100 text-emerald-600 border border-emerald-200 font-bold px-3 py-1 rounded-full text-xs flex items-center justify-center gap-1.5 w-28 mx-auto">
                          <i class="bi bi-activity animate-pulse"></i> Pendiente
                        </span>`;
+                
+                const textoEstado = esFinal ? "FINALIZADA" : "EN CURSO";
 
                 tabla.innerHTML += `
                     <tr class="hover:bg-pink-50/50 transition border-b border-gray-50 group">
@@ -197,20 +198,14 @@ async function cargarVisitas() {
         if(refreshIcon) refreshIcon.classList.remove('spin-anim');
     }
 }
+CHAS ---
+function esMismaFecha(fechaStringApi, fechaObjetoJs) {
+    if (!fechaStringApi) return false;
 
-function esMismaFecha(fechaString, fechaObjeto) {
-    if (!fechaString) return false;
-
-    const datePart = (typeof fechaString === 'string' && fechaString.length >= 10)
-        ? fechaString.slice(0, 10)
-        : new Date(fechaString).toISOString().split('T')[0];
+    const fechaApi = fechaStringApi.split('T')[0];
+    const fechaLocal = fechaObjetoJs.toLocaleDateString('en-CA');
     
-    const y = fechaObjeto.getFullYear();
-    const m = String(fechaObjeto.getMonth() + 1).padStart(2, '0');
-    const d = String(fechaObjeto.getDate()).padStart(2, '0');
-    const localDate = `${y}-${m}-${d}`;
-
-    return datePart === localDate;
+    return fechaApi === fechaLocal;
 }
 
 function actualizarGrafico(hoy, activas, finalizadas) {
@@ -224,8 +219,8 @@ function actualizarGrafico(hoy, activas, finalizadas) {
     }
 
     let gradientPink = ctx.createLinearGradient(0, 0, 0, 400);
-    gradientPink.addColorStop(0, 'rgba(236, 72, 153, 0.9)');
-    gradientPink.addColorStop(1, 'rgba(244, 63, 94, 0.5)');
+    gradientPink.addColorStop(0, 'rgba(236, 72, 153, 0.9)'); 
+    gradientPink.addColorStop(1, 'rgba(244, 63, 94, 0.5)');  
 
     chartInstance = new Chart(ctx, {
         type: "bar",
@@ -235,9 +230,9 @@ function actualizarGrafico(hoy, activas, finalizadas) {
                 label: 'Cantidad',
                 data: [hoy, activas, finalizadas],
                 backgroundColor: [
-                    gradientPink,
-                    "rgba(16, 185, 129, 0.7)",
-                    "rgba(156, 163, 175, 0.7)"
+                    gradientPink,              
+                    "rgba(16, 185, 129, 0.7)", 
+                    "rgba(156, 163, 175, 0.7)" 
                 ],
                 borderColor: [
                     "rgba(219, 39, 119, 1)",
