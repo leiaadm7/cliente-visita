@@ -81,8 +81,11 @@ async function cargarVisitas() {
 
         lista.forEach(v => {
             if (v.fecha === hoy) totalHoy++;
-            if (v.estado.toLowerCase() === "en proceso") activas++;
-            if (v.estado.toLowerCase() === "finalizada") finalizadas++;
+            const estadoLimpio = v.estado.trim().toLowerCase();
+
+            if (estadoLimpio.includes("proceso")) activas++;
+            if (estadoLimpio.includes("final")) finalizadas++;
+
 
             tabla.innerHTML += `
                 <tr class="hover:bg-pink-50 transition">
