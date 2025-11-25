@@ -88,7 +88,6 @@ async function cargarVisitas() {
             if (estadoLimpio.includes("proceso")) activas++;
             if (estadoLimpio.includes("final")) finalizadas++;
 
-
             tabla.innerHTML += `
                 <tr class="hover:bg-pink-50 transition">
                     <td class="px-4 py-3">${v.id}</td>
@@ -104,11 +103,14 @@ async function cargarVisitas() {
         document.getElementById("total-hoy").innerText = totalHoy;
         document.getElementById("total-activas").innerText = activas;
         document.getElementById("total-finalizadas").innerText = finalizadas;
+        
+        actualizarGrafico(totalHoy, activas, finalizadas);
 
     } finally {
         loader.classList.add("hidden");
     }
 }
+
 
 function actualizarGrafico(hoy, activas, finalizadas) {
 
