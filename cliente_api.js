@@ -5,19 +5,17 @@ let chartInstance = null;
 async function obtenerToken() {
     const usernameInput = document.getElementById("api-username");
     const passwordInput = document.getElementById("api-password");
-    const msgLabel = document.getElementById("login-message");
-
+    
     if (!usernameInput || !passwordInput) return;
-
     const username = usernameInput.value;
     const password = passwordInput.value;
 
     if (!username || !password) {
-        mostrarMensajeLogin("Por favor ingresa usuario y contraseña", "text-red-500 font-bold");
+        mostrarMensajeLogin("Por favor ingresa usuario y contraseña", "text-rose-500 font-bold");
         return;
     }
 
-    mostrarMensajeLogin("Conectando...", "text-gray-500 font-bold");
+    mostrarMensajeLogin("Verificando credenciales...", "text-gray-500 font-medium");
 
     try {
         const res = await fetch(`${API_BASE_URL}/token/`, {
@@ -27,7 +25,7 @@ async function obtenerToken() {
         });
 
         if (!res.ok) {
-            mostrarMensajeLogin("Credenciales incorrectas.", "text-red-600 font-bold");
+            mostrarMensajeLogin("Acceso denegado. Verifica tus datos.", "text-rose-600 font-bold");
             return;
         }
 
@@ -35,12 +33,12 @@ async function obtenerToken() {
         localStorage.setItem("access_token", data.access);
         localStorage.setItem("refresh_token", data.refresh);
 
-        mostrarMensajeLogin("¡Autenticación exitosa!", "text-green-600 font-bold");
+        mostrarMensajeLogin("¡Bienvenido! Cargando panel...", "text-emerald-500 font-bold");
 
         setTimeout(mostrarPanelDatos, 800);
 
     } catch (e) {
-        mostrarMensajeLogin("Error de conexión.", "text-red-600 font-bold");
+        mostrarMensajeLogin("Error de conexión con el servidor.", "text-rose-600 font-bold");
         console.error(e);
     }
 }
@@ -63,7 +61,6 @@ function mostrarPanelDatos() {
         if (loginSec) loginSec.classList.add("hidden");
         if (dataSec) {
             dataSec.classList.remove("hidden");
-            // Animación suave de entrada
             setTimeout(() => {
                 dataSec.classList.remove('opacity-0', 'translate-y-4');
             }, 50);
@@ -71,7 +68,7 @@ function mostrarPanelDatos() {
 
         const tokenDisplay = document.getElementById("token-display");
         if (tokenDisplay) {
-            tokenDisplay.innerText = `Token: ${token.substring(0, 30)}...`;
+            tokenDisplay.innerText = `Sesión Segura • ID: ${token.substring(0, 8)}...`;
         }
 
         cargarVisitas();
@@ -101,7 +98,7 @@ async function cargarVisitas() {
         });
 
         if (res.status === 401) {
-            alert("Tu sesión ha expirado. Por favor ingresa de nuevo.");
+            alert("Tu sesión ha expirado. Ingresa nuevamente.");
             cerrarSesion();
             return;
         }
@@ -109,58 +106,71 @@ async function cargarVisitas() {
         const data = await res.json();
         const lista = Array.isArray(data) ? data : data.results || [];
 
-        const hoyStr = new Date().toISOString().split("T")[0];
+        const hoy = new Date();
+        const hoyStr = hoy.toISOString().split("T")[0];
+
         let totalHoy = 0;
         let activas = 0;
         let finalizadas = 0;
 
-        if (tabla) tabla.innerHTML = ""; 
+        if (tabla) tabla.innerHTML = "";
 
         if (lista.length === 0) {
-            if (tabla) tabla.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-400">No hay visitas registradas.</td></tr>';
+            if (tabla) tabla.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400">No hay datos disponibles.</td></tr>';
             actualizarGrafico(0, 0, 0);
             return;
         }
 
         lista.forEach(v => {
-            if (v.fecha === hoyStr) totalHoy++;
+            const fechaVisita = v.fecha ? v.fecha.split("T")[0] : ""; 
+            if (fechaVisita === hoyStr) {
+                totalHoy++;
+            }
 
-            const estado = v.estado ? v.estado.trim().toUpperCase() : "";
+            const tieneSalida = v.hora_salida !== null && v.hora_salida !== "";
+            const estadoTexto = v.estado ? v.estado.trim().toUpperCase() : "";
+            const esFinal = (tieneSalida || estadoTexto.includes("FINAL"));
 
-            if (estado.includes("CURSO") || estado.includes("PROCESO")) {
-                activas++;
-            } else if (estado.includes("FINAL")) {
+            if (esFinal) {
                 finalizadas++;
+            } else {
+                activas++;
             }
 
             if (tabla) {
-                const badgeClass = (estado.includes("FINAL"))
-                    ? 'bg-gray-100 text-gray-600 border border-gray-200' 
-                    : 'bg-green-100 text-green-700 border border-green-200 animate-pulse';
-
-                let hora = '';
-                if (v.hora_entrada) {
-                    const fechaObj = new Date(v.hora_entrada);
-                    hora = fechaObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const entrada = v.hora_entrada ? new Date(v.hora_entrada).toLocaleString() : "-";
+                
+                let salidaHTML = '<span class="text-pink-400 font-medium italic">Pendiente</span>';
+                if (tieneSalida) {
+                    salidaHTML = `<span class="text-gray-600">${new Date(v.hora_salida).toLocaleString()}</span>`;
                 }
 
+                const estadoStyle = esFinal
+                    ? 'bg-gray-100 text-gray-500 border border-gray-200' 
+                    : 'bg-emerald-100 text-emerald-600 font-bold border border-emerald-200';
+                
+                const iconoEstado = esFinal
+                    ? '<i class="bi bi-check2-circle"></i>'
+                    : '<i class="bi bi-activity animate-pulse"></i>';
+
+                const textoEstado = esFinal ? "FINALIZADA" : "EN CURSO";
+
                 tabla.innerHTML += `
-                    <tr class="hover:bg-blue-50 transition border-b border-gray-100">
-                        <td class="px-6 py-4 text-gray-500 font-mono text-xs">#${v.id}</td>
-                        <td class="px-6 py-4 font-bold text-gray-800">${v.nombre} ${v.apellido || ""}</td>
-                        <td class="px-6 py-4 text-xs font-mono text-gray-600">${v.rut}</td>
-                        <td class="px-6 py-4 text-xs italic text-gray-500 max-w-[150px] truncate">${v.motivo}</td>
+                    <tr class="hover:bg-pink-50/50 transition border-b border-gray-50 group">
+                        <td class="px-6 py-4 font-mono text-xs text-gray-400 group-hover:text-pink-400">#${v.id}</td>
                         <td class="px-6 py-4">
-                            <span class="${badgeClass} px-3 py-1 rounded-full text-xs font-bold">
-                                ${v.estado}
+                            <div class="font-bold text-gray-800">${v.nombre} ${v.apellido || ""}</div>
+                            <div class="text-xs text-gray-400 mt-0.5 italic truncate w-32">${v.motivo || 'Sin motivo'}</div>
+                        </td>
+                        <td class="px-6 py-4 text-xs font-mono text-gray-500 bg-gray-50/50 rounded-lg w-fit h-fit my-auto px-2 py-1">${v.rut}</td>
+                        <td class="px-6 py-4 text-xs font-mono text-gray-500">${v.motivo}</td>
+                        <td class="px-6 py-4">
+                            <span class="${estadoStyle} px-3 py-1 rounded-full text-xs flex items-center gap-1.5 w-fit shadow-sm">
+                                ${iconoEstado} ${textoEstado}
                             </span>
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-600">
-                            <div class="flex flex-col">
-                                <span>${v.fecha}</span>
-                                <span class="text-xs text-gray-400">${hora}</span>
-                            </div>
-                        </td>
+                        <td class="px-6 py-4 text-xs text-gray-600 font-mono whitespace-nowrap">${entrada}</td>
+                        <td class="px-6 py-4 text-xs font-mono whitespace-nowrap">${salidaHTML}</td>
                     </tr>
                 `;
             }
@@ -179,8 +189,8 @@ async function cargarVisitas() {
         actualizarGrafico(totalHoy, activas, finalizadas);
 
     } catch (e) {
-        console.error("Error cargando datos:", e);
-        mostrarMensajeLogin("Error al cargar datos.", "text-red-600");
+        console.error(e);
+        mostrarMensajeLogin("Error cargando datos", "text-red-500");
     } finally {
         if(refreshIcon) refreshIcon.classList.remove('spin-anim');
     }
@@ -188,11 +198,7 @@ async function cargarVisitas() {
 
 function actualizarGrafico(hoy, activas, finalizadas) {
     const canvas = document.getElementById("chartVisitas");
-
-    if (!canvas) {
-        console.warn("No se encontró el canvas #chartVisitas. Asegúrate de tener el HTML actualizado.");
-        return;
-    }
+    if (!canvas) return;
 
     const ctx = canvas.getContext("2d");
 
@@ -200,26 +206,30 @@ function actualizarGrafico(hoy, activas, finalizadas) {
         chartInstance.destroy();
     }
 
+    let gradientPink = ctx.createLinearGradient(0, 0, 0, 400);
+    gradientPink.addColorStop(0, 'rgba(236, 72, 153, 0.9)');
+    gradientPink.addColorStop(1, 'rgba(244, 63, 94, 0.5)');
+
     chartInstance = new Chart(ctx, {
         type: "bar",
         data: {
-            labels: ["Visitas Hoy", "Activas", "Finalizadas"],
+            labels: ["Visitas Hoy", "En Curso", "Finalizadas"],
             datasets: [{
                 label: 'Cantidad',
                 data: [hoy, activas, finalizadas],
                 backgroundColor: [
-                    "rgba(255, 146, 240, 0.7)", 
-                    "rgba(34, 197, 94, 0.7)",  
-                    "rgba(107, 114, 128, 0.7)" 
+                    gradientPink,
+                    "rgba(16, 185, 129, 0.7)",
+                    "rgba(156, 163, 175, 0.7)"
                 ],
                 borderColor: [
-                    "rgba(255, 146, 240, 0.7)",
-                    "rgb(34, 197, 94)",
-                    "rgb(107, 114, 128)"
+                    "rgba(219, 39, 119, 1)",
+                    "rgba(5, 150, 105, 1)",
+                    "rgba(107, 114, 128, 1)"
                 ],
                 borderWidth: 2,
                 borderRadius: 8,
-                barThickness: 50
+                barThickness: 60
             }]
         },
         options: {
@@ -227,24 +237,33 @@ function actualizarGrafico(hoy, activas, finalizadas) {
             maintainAspectRatio: false,
             plugins: { 
                 legend: { display: false },
-                title: {
-                    display: true,
-                    text: 'Estadísticas en Tiempo Real'
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#1f2937',
+                    bodyColor: '#db2777',
+                    borderColor: '#fbcfe8',
+                    borderWidth: 1,
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 14 },
+                    displayColors: false
+                }
+            },
+            scales: { 
+                y: { 
+                    beginAtZero: true,
+                    grid: { color: '#fdf2f8' },
+                    ticks: { stepSize: 1, color: '#9ca3af' },
+                    border: { display: false }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#6b7280', font: { weight: 'bold' } }
                 }
             },
             animation: {
                 duration: 1000,
                 easing: 'easeOutQuart'
-            },
-            scales: { 
-                y: { 
-                    beginAtZero: true,
-                    grid: { color: '#f3f4f6' },
-                    ticks: { stepSize: 1 }
-                },
-                x: {
-                    grid: { display: false }
-                }
             }
         }
     });
