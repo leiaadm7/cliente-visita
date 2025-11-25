@@ -103,7 +103,7 @@ async function cargarVisitas() {
         document.getElementById("total-hoy").innerText = totalHoy;
         document.getElementById("total-activas").innerText = activas;
         document.getElementById("total-finalizadas").innerText = finalizadas;
-        
+
         actualizarGrafico(totalHoy, activas, finalizadas);
 
     } finally {
@@ -111,13 +111,19 @@ async function cargarVisitas() {
     }
 }
 
-
 function actualizarGrafico(hoy, activas, finalizadas) {
 
-    const ctx = document.getElementById("chartVisitas");
+    const canvas = document.getElementById("chartVisitas");
+
+    if (!canvas) {
+        console.error("No se encontró el canvas #chartVisitas");
+        return;
+    }
+
+    const ctx = canvas.getContext("2d");
 
     if (!ctx) {
-        console.error("❌ No se encontró el elemento #chartVisitas");
+        console.error("El canvas está pero no se pudo obtener el contexto 2D");
         return;
     }
 
@@ -136,11 +142,19 @@ function actualizarGrafico(hoy, activas, finalizadas) {
             }]
         },
         options: {
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
+            plugins: { 
+                legend: { display: false } 
+            },
+            animation: {
+                duration: 300
+            },
+            scales: { 
+                y: { beginAtZero: true } 
+            }
         }
     });
 }
+
 
 document.addEventListener("DOMContentLoaded", () => {
     if (localStorage.getItem("access_token")) {
