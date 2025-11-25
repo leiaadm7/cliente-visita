@@ -5,7 +5,7 @@ let chartInstance = null;
 async function obtenerToken() {
     const usernameInput = document.getElementById("api-username");
     const passwordInput = document.getElementById("api-password");
-    
+
     if (!usernameInput || !passwordInput) return;
 
     const username = usernameInput.value;
@@ -105,6 +105,7 @@ async function cargarVisitas() {
         const data = await res.json();
         const lista = Array.isArray(data) ? data : data.results || [];
         const hoy = new Date();
+
         const elFechaHoy = document.getElementById("fecha-hoy");
         if (elFechaHoy) elFechaHoy.innerText = hoy.toLocaleDateString();
 
@@ -121,14 +122,13 @@ async function cargarVisitas() {
         }
 
         lista.forEach(v => {
+
             if (esMismaFecha(v.fecha, hoy)) {
                 totalHoy++;
             }
-            const tieneSalida = v.hora_salida !== null && v.hora_salida !== "";
-            const estadoTexto = v.estado ? v.estado.trim().toUpperCase() : "";
-            const esFinal = (tieneSalida || estadoTexto.includes("FINAL"));
 
-            if (esFinal) {
+            const tieneSalida = v.hora_salida !== null && v.hora_salida !== "";
+            if (tieneSalida) {
                 finalizadas++;
             } else {
                 activas++;
@@ -141,7 +141,7 @@ async function cargarVisitas() {
                 };
 
                 const horaEntrada = formatTime(v.hora_entrada);
-                
+
                 let salidaHTML = '<span class="text-pink-400 font-medium italic bg-pink-50 px-2 py-1 rounded text-xs">Pendiente</span>';
                 let celdaSalidaClass = "text-center";
                 
@@ -150,15 +150,13 @@ async function cargarVisitas() {
                     celdaSalidaClass = "text-right";
                 }
 
-                const estadoBadge = esFinal
+                const estadoBadge = tieneSalida
                     ? `<span class="bg-gray-100 text-gray-500 border border-gray-200 px-3 py-1 rounded-full text-xs flex items-center justify-center gap-1.5 w-28 mx-auto">
                          <i class="bi bi-check2-circle"></i> Finalizada
                        </span>`
                     : `<span class="bg-emerald-100 text-emerald-600 border border-emerald-200 font-bold px-3 py-1 rounded-full text-xs flex items-center justify-center gap-1.5 w-28 mx-auto">
                          <i class="bi bi-activity animate-pulse"></i> Pendiente
                        </span>`;
-                
-                const textoEstado = esFinal ? "FINALIZADA" : "EN CURSO";
 
                 tabla.innerHTML += `
                     <tr class="hover:bg-pink-50/50 transition border-b border-gray-50 group">
@@ -198,14 +196,13 @@ async function cargarVisitas() {
         if(refreshIcon) refreshIcon.classList.remove('spin-anim');
     }
 }
-CHAS ---
-function esMismaFecha(fechaStringApi, fechaObjetoJs) {
-    if (!fechaStringApi) return false;
 
-    const fechaApi = fechaStringApi.split('T')[0];
-    const fechaLocal = fechaObjetoJs.toLocaleDateString('en-CA');
+function esMismaFecha(fechaString, fechaObjeto) {
+    if (!fechaString) return false;
+    const fecha1 = new Date(fechaString).toISOString().split('T')[0];
+    const fecha2 = fechaObjeto.toISOString().split('T')[0];
     
-    return fechaApi === fechaLocal;
+    return fecha1 === fecha2;
 }
 
 function actualizarGrafico(hoy, activas, finalizadas) {
@@ -232,7 +229,7 @@ function actualizarGrafico(hoy, activas, finalizadas) {
                 backgroundColor: [
                     gradientPink,              
                     "rgba(16, 185, 129, 0.7)", 
-                    "rgba(156, 163, 175, 0.7)" 
+                    "rgba(156, 163, 175, 0.7)"
                 ],
                 borderColor: [
                     "rgba(219, 39, 119, 1)",
