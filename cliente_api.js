@@ -200,11 +200,17 @@ async function cargarVisitas() {
 
 function esMismaFecha(fechaString, fechaObjeto) {
     if (!fechaString) return false;
+
+    const datePart = (typeof fechaString === 'string' && fechaString.length >= 10)
+        ? fechaString.slice(0, 10)
+        : new Date(fechaString).toISOString().split('T')[0];
     
-    const fecha1 = new Date(fechaString).toISOString().split('T')[0];
-    const fecha2 = fechaObjeto.toISOString().split('T')[0];
-    
-    return fecha1 === fecha2;
+    const y = fechaObjeto.getFullYear();
+    const m = String(fechaObjeto.getMonth() + 1).padStart(2, '0');
+    const d = String(fechaObjeto.getDate()).padStart(2, '0');
+    const localDate = `${y}-${m}-${d}`;
+
+    return datePart === localDate;
 }
 
 function actualizarGrafico(hoy, activas, finalizadas) {
