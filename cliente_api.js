@@ -48,7 +48,9 @@ function mostrarPanelDatos() {
         document.getElementById("token-display").innerText =
             token.substring(0, 50) + "...";
 
-        cargarVisitas();
+        setTimeout(() => {
+            cargarVisitas();
+        }, 200);
     }
 }
 
@@ -102,9 +104,6 @@ async function cargarVisitas() {
         document.getElementById("total-hoy").innerText = totalHoy;
         document.getElementById("total-activas").innerText = activas;
         document.getElementById("total-finalizadas").innerText = finalizadas;
-
-        // Gráfico actualizado
-        actualizarGrafico(totalHoy, activas, finalizadas);
 
     } finally {
         loader.classList.add("hidden");
