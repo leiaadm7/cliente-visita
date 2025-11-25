@@ -64,6 +64,12 @@ function mostrarPanelDatos() {
                 dataSec.classList.remove('opacity-0', 'translate-y-4');
             }, 50);
         }
+
+        const tokenDisplay = document.getElementById("token-display");
+        if (tokenDisplay) {
+            tokenDisplay.innerText = `Sesión Segura • ID: ${token.substring(0, 8)}...`;
+        }
+
         cargarVisitas();
     }
 }
@@ -99,10 +105,10 @@ async function cargarVisitas() {
         const data = await res.json();
         const lista = Array.isArray(data) ? data : data.results || [];
 
-        const ahora = new Date();
-        const hoyLocal = ahora.toLocaleDateString('en-CA');
+        const hoy = new Date();
         
-        document.getElementById("fecha-hoy").innerText = hoyLocal;
+        const elFechaHoy = document.getElementById("fecha-hoy");
+        if (elFechaHoy) elFechaHoy.innerText = hoy.toLocaleDateString();
 
         let totalHoy = 0;
         let activas = 0;
@@ -117,7 +123,7 @@ async function cargarVisitas() {
         }
 
         lista.forEach(v => {
-            if (v.fecha === hoyLocal) {
+            if (esMismaFecha(v.fecha, hoy)) {
                 totalHoy++;
             }
 
@@ -136,32 +142,37 @@ async function cargarVisitas() {
                 };
 
                 const horaEntrada = formatTime(v.hora_entrada);
-                const horaSalida = tieneSalida 
-                    ? `<span class="text-gray-800 font-medium">${formatTime(v.hora_salida)}</span>`
-                    : `<span class="text-pink-400 italic text-xs bg-pink-50 px-2 py-1 rounded">Pendiente</span>`;
+                
+                let salidaHTML = '<span class="text-pink-400 font-medium italic bg-pink-50 px-2 py-1 rounded text-xs">Pendiente</span>';
+                let celdaSalidaClass = "text-center";
+                
+                if (tieneSalida) {
+                    salidaHTML = `<span class="text-gray-700 font-mono text-xs">${formatTime(v.hora_salida)}</span>`;
+                    celdaSalidaClass = "text-right";
+                }
 
                 const estadoBadge = tieneSalida
-                    ? `<span class="bg-gray-100 text-gray-500 border border-gray-200 px-3 py-1 rounded-full text-xs flex items-center gap-1.5 w-fit">
+                    ? `<span class="bg-gray-100 text-gray-500 border border-gray-200 px-3 py-1 rounded-full text-xs flex items-center justify-center gap-1.5 w-28 mx-auto">
                          <i class="bi bi-check2-circle"></i> Finalizada
                        </span>`
-                    : `<span class="bg-emerald-100 text-emerald-600 border border-emerald-200 font-bold px-3 py-1 rounded-full text-xs flex items-center gap-1.5 w-fit">
-                         <i class="bi bi-activity animate-pulse"></i> En Curso
+                    : `<span class="bg-emerald-100 text-emerald-600 border border-emerald-200 font-bold px-3 py-1 rounded-full text-xs flex items-center justify-center gap-1.5 w-28 mx-auto">
+                         <i class="bi bi-activity animate-pulse"></i> Pendiente
                        </span>`;
 
                 tabla.innerHTML += `
-                    <tr class="hover:bg-pink-50/60 transition border-b border-gray-50 last:border-0 group">
+                    <tr class="hover:bg-pink-50/50 transition border-b border-gray-50 group">
                         <td class="px-6 py-4 font-mono text-xs text-gray-400 group-hover:text-pink-400">#${v.id}</td>
                         <td class="px-6 py-4">
                             <div class="font-bold text-gray-800 text-sm">${v.nombre} ${v.apellido || ""}</div>
                         </td>
-                        <td class="px-6 py-4 text-xs font-mono text-gray-500">${v.rut}</td>
-                        <td class="px-6 py-4 text-xs text-gray-500 truncate max-w-[150px]" title="${v.motivo}">${v.motivo}</td>
-                        <td class="px-6 py-4">${estadoBadge}</td>
+                        <td class="px-6 py-4 text-xs font-mono text-gray-500 bg-gray-50/50 rounded-lg w-fit h-fit my-auto px-2 py-1">${v.rut}</td>
+                        <td class="px-6 py-4 text-xs font-mono text-gray-500 max-w-[150px] truncate" title="${v.motivo}">${v.motivo}</td>
+                        <td class="px-6 py-4 text-center">${estadoBadge}</td>
                         <td class="px-6 py-4 text-right text-xs text-gray-600 font-mono">
-                            <div>${v.fecha}</div>
+                            <div class="font-bold">${v.fecha}</div>
                             <div class="text-gray-400">${horaEntrada}</div>
                         </td>
-                        <td class="px-6 py-4 text-right text-xs text-gray-600 font-mono">${horaSalida}</td>
+                        <td class="px-6 py-4 ${celdaSalidaClass} text-xs text-gray-600 font-mono">${salidaHTML}</td>
                     </tr>
                 `;
             }
@@ -187,6 +198,15 @@ async function cargarVisitas() {
     }
 }
 
+function esMismaFecha(fechaString, fechaObjeto) {
+    if (!fechaString) return false;
+    
+    const fecha1 = new Date(fechaString).toISOString().split('T')[0];
+    const fecha2 = fechaObjeto.toISOString().split('T')[0];
+    
+    return fecha1 === fecha2;
+}
+
 function actualizarGrafico(hoy, activas, finalizadas) {
     const canvas = document.getElementById("chartVisitas");
     if (!canvas) return;
@@ -204,12 +224,12 @@ function actualizarGrafico(hoy, activas, finalizadas) {
     chartInstance = new Chart(ctx, {
         type: "bar",
         data: {
-            labels: ["Visitas Hoy", "En Curso", "Finalizadas"],
+            labels: ["Visitas Hoy", "Pendientes", "Finalizadas"],
             datasets: [{
                 label: 'Cantidad',
                 data: [hoy, activas, finalizadas],
                 backgroundColor: [
-                    gradientPink,              
+                    gradientPink,
                     "rgba(16, 185, 129, 0.7)",
                     "rgba(156, 163, 175, 0.7)"
                 ],
@@ -226,16 +246,35 @@ function actualizarGrafico(hoy, activas, finalizadas) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#1f2937',
+                    bodyColor: '#db2777',
+                    borderColor: '#fbcfe8',
+                    borderWidth: 1,
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 14 },
+                    displayColors: false
+                }
+            },
             scales: { 
                 y: { 
                     beginAtZero: true,
                     grid: { color: '#fdf2f8' },
-                    ticks: { stepSize: 1 }
+                    ticks: { stepSize: 1, color: '#9ca3af' },
+                    border: { display: false }
                 },
                 x: {
-                    grid: { display: false }
+                    grid: { display: false },
+                    ticks: { color: '#6b7280', font: { weight: 'bold' } }
                 }
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeOutQuart'
             }
         }
     });
@@ -243,7 +282,10 @@ function actualizarGrafico(hoy, activas, finalizadas) {
 
 document.addEventListener("DOMContentLoaded", () => {
     const style = document.createElement('style');
-    style.innerHTML = `.spin-anim { animation: spin 1s linear infinite; } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+    style.innerHTML = `
+        .spin-anim { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    `;
     document.head.appendChild(style);
 
     if (localStorage.getItem("access_token")) {
