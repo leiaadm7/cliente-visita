@@ -3,50 +3,91 @@ const API_BASE_URL = "https://evaluacion-s29l.onrender.com/api";
 let chartInstance = null;
 
 async function obtenerToken() {
-    const username = document.getElementById('api-username').value;
-    const password = document.getElementById('api-password').value;
-    const msgLabel = document.getElementById('login-message');
+    const usernameInput = document.getElementById("api-username");
+    const passwordInput = document.getElementById("api-password");
+    const msgLabel = document.getElementById("login-message");
+
+    if (!usernameInput || !passwordInput) return;
+
+    const username = usernameInput.value;
+    const password = passwordInput.value;
 
     if (!username || !password) {
-        mostrarMensajeLogin("Ingresa usuario y contraseña", "text-red-500");
+        mostrarMensajeLogin("Por favor ingresa usuario y contraseña", "text-red-500 font-bold");
         return;
     }
 
-    mostrarMensajeLogin("Conectando con el servidor...", "text-blue-500");
+    mostrarMensajeLogin("Conectando...", "text-gray-500 font-bold");
 
     try {
-        const response = await fetch(`${API_BASE_URL}/token/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+        const res = await fetch(`${API_BASE_URL}/token/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
         });
 
-        if (response.ok) {
-            const data = await response.json();
-            localStorage.setItem('access_token', data.access);
-            localStorage.setItem('refresh_token', data.refresh);
-            
-            mostrarMensajeLogin("¡Login Correcto! Redirigiendo...", "text-green-600");
-            setTimeout(mostrarPanelDatos, 800);
-        } else {
-            mostrarMensajeLogin("Usuario o contraseña incorrectos", "text-red-600");
+        if (!res.ok) {
+            mostrarMensajeLogin("Credenciales incorrectas.", "text-red-600 font-bold");
+            return;
         }
-    } catch (error) {
-        console.error("Error Login:", error);
-        mostrarMensajeLogin("Error de conexión. Revisa la URL de la API.", "text-red-600");
+
+        const data = await res.json();
+        localStorage.setItem("access_token", data.access);
+        localStorage.setItem("refresh_token", data.refresh);
+
+        mostrarMensajeLogin("¡Autenticación exitosa!", "text-green-600 font-bold");
+
+        setTimeout(mostrarPanelDatos, 800);
+
+    } catch (e) {
+        mostrarMensajeLogin("Error de conexión.", "text-red-600 font-bold");
+        console.error(e);
     }
 }
 
 function mostrarMensajeLogin(texto, claseColor) {
     const msg = document.getElementById('login-message');
-    msg.innerText = texto;
-    msg.className = `text-center text-sm font-medium min-h-[24px] mt-2 ${claseColor}`;
+    if (msg) {
+        msg.innerText = texto;
+        msg.className = `text-center text-sm font-medium min-h-[24px] mt-2 ${claseColor}`;
+    }
+}
+
+function mostrarPanelDatos() {
+    const token = localStorage.getItem("access_token");
+
+    if (token) {
+        const loginSec = document.getElementById("login-section");
+        const dataSec = document.getElementById("data-section");
+
+        if (loginSec) loginSec.classList.add("hidden");
+        if (dataSec) {
+            dataSec.classList.remove("hidden");
+            // Animación suave de entrada
+            setTimeout(() => {
+                dataSec.classList.remove('opacity-0', 'translate-y-4');
+            }, 50);
+        }
+
+        const tokenDisplay = document.getElementById("token-display");
+        if (tokenDisplay) {
+            tokenDisplay.innerText = `Token: ${token.substring(0, 30)}...`;
+        }
+
+        cargarVisitas();
+    }
+}
+
+function cerrarSesion() {
+    localStorage.clear();
+    location.reload();
 }
 
 async function cargarVisitas() {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem("access_token");
+    const tabla = document.getElementById("tabla-body");
     const refreshIcon = document.getElementById('refresh-icon');
-    
+
     if (!token) {
         cerrarSesion();
         return;
@@ -55,144 +96,172 @@ async function cargarVisitas() {
     if(refreshIcon) refreshIcon.classList.add('spin-anim');
 
     try {
-        const response = await fetch(`${API_BASE_URL}/visita/`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+        const res = await fetch(`${API_BASE_URL}/visita/`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (res.status === 401) {
+            alert("Tu sesión ha expirado. Por favor ingresa de nuevo.");
+            cerrarSesion();
+            return;
+        }
+
+        const data = await res.json();
+        const lista = Array.isArray(data) ? data : data.results || [];
+
+        const hoyStr = new Date().toISOString().split("T")[0];
+        let totalHoy = 0;
+        let activas = 0;
+        let finalizadas = 0;
+
+        if (tabla) tabla.innerHTML = ""; 
+
+        if (lista.length === 0) {
+            if (tabla) tabla.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-400">No hay visitas registradas.</td></tr>';
+            actualizarGrafico(0, 0, 0);
+            return;
+        }
+
+        lista.forEach(v => {
+            if (v.fecha === hoyStr) totalHoy++;
+
+            const estado = v.estado ? v.estado.trim().toUpperCase() : "";
+
+            if (estado.includes("CURSO") || estado.includes("PROCESO")) {
+                activas++;
+            } else if (estado.includes("FINAL")) {
+                finalizadas++;
+            }
+
+            if (tabla) {
+                const badgeClass = (estado.includes("FINAL"))
+                    ? 'bg-gray-100 text-gray-600 border border-gray-200' 
+                    : 'bg-green-100 text-green-700 border border-green-200 animate-pulse';
+
+                let hora = '';
+                if (v.hora_entrada) {
+                    const fechaObj = new Date(v.hora_entrada);
+                    hora = fechaObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                }
+
+                tabla.innerHTML += `
+                    <tr class="hover:bg-blue-50 transition border-b border-gray-100">
+                        <td class="px-6 py-4 text-gray-500 font-mono text-xs">#${v.id}</td>
+                        <td class="px-6 py-4 font-bold text-gray-800">${v.nombre} ${v.apellido || ""}</td>
+                        <td class="px-6 py-4 text-xs font-mono text-gray-600">${v.rut}</td>
+                        <td class="px-6 py-4 text-xs italic text-gray-500 max-w-[150px] truncate">${v.motivo}</td>
+                        <td class="px-6 py-4">
+                            <span class="${badgeClass} px-3 py-1 rounded-full text-xs font-bold">
+                                ${v.estado}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600">
+                            <div class="flex flex-col">
+                                <span>${v.fecha}</span>
+                                <span class="text-xs text-gray-400">${hora}</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
             }
         });
 
-        if (response.ok) {
-            const data = await response.json();
-            const lista = Array.isArray(data) ? data : (data.results || []);
-            
-            actualizarDashboard(lista);
-            renderizarTabla(lista);
-        } else if (response.status === 401) {
-            alert("Sesión expirada");
-            cerrarSesion();
-        }
-    } catch (error) {
-        console.error("Error Datos:", error);
-        alert("Error al cargar los datos de la API");
+        const elHoy = document.getElementById("stat-hoy");
+        const elActivas = document.getElementById("stat-activas");
+        const elFin = document.getElementById("stat-finalizadas");
+        const elTotal = document.getElementById("total-registros");
+
+        if(elHoy) elHoy.innerText = totalHoy;
+        if(elActivas) elActivas.innerText = activas;
+        if(elFin) elFin.innerText = finalizadas;
+        if(elTotal) elTotal.innerText = `${lista.length} registros`;
+
+        actualizarGrafico(totalHoy, activas, finalizadas);
+
+    } catch (e) {
+        console.error("Error cargando datos:", e);
+        mostrarMensajeLogin("Error al cargar datos.", "text-red-600");
     } finally {
         if(refreshIcon) refreshIcon.classList.remove('spin-anim');
     }
 }
 
-function actualizarDashboard(listaVisitas) {
-    const hoy = new Date().toISOString().split('T')[0];
+function actualizarGrafico(hoy, activas, finalizadas) {
+    const canvas = document.getElementById("chartVisitas");
 
-    let totalHoy = 0;
-    let totalActivas = 0;
-    let totalFinalizadas = 0;
-
-    listaVisitas.forEach(visita => {
-        if (visita.fecha === hoy) {
-            totalHoy++;
-        }
-
-        if (visita.estado === 'EN_CURSO') {
-            totalActivas++;
-        } else if (visita.estado === 'FINALIZADA') {
-            totalFinalizadas++;
-        }
-    });
-
-    animarNumero('stat-hoy', totalHoy);
-    animarNumero('stat-activas', totalActivas);
-    animarNumero('stat-finalizadas', totalFinalizadas);
-
-    document.getElementById('total-registros').innerText = `${listaVisitas.length} registros`;
-}
-
-function animarNumero(idElemento, valorFinal) {
-    const elemento = document.getElementById(idElemento);
-    elemento.innerText = valorFinal;
-}
-
-function renderizarTabla(lista) {
-    const tabla = document.getElementById('tabla-body');
-    tabla.innerHTML = '';
-
-    if (lista.length === 0) {
-        tabla.innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center py-8 text-gray-400">
-                    <i class="bi bi-inbox text-4xl block mb-2 opacity-50"></i>
-                    No hay visitas registradas.
-                </td>
-            </tr>`;
+    if (!canvas) {
+        console.warn("No se encontró el canvas #chartVisitas. Asegúrate de tener el HTML actualizado.");
         return;
     }
 
-    lista.forEach(v => {
-        const fechaObj = new Date(v.hora_entrada);
-        const hora = fechaObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const ctx = canvas.getContext("2d");
 
-        const badgeClass = v.estado === 'FINALIZADA' 
-            ? 'bg-gray-100 text-gray-600 border-gray-200' 
-            : 'bg-green-100 text-green-700 border-green-200 animate-pulse';
-        
-        const iconEstado = v.estado === 'FINALIZADA' 
-            ? '<i class="bi bi-check-circle"></i>' 
-            : '<i class="bi bi-activity"></i>';
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
 
-        const row = `
-            <tr class="hover:bg-blue-50 transition duration-150 group">
-                <td class="px-6 py-4 font-mono text-xs text-gray-400 group-hover:text-blue-500">#${v.id}</td>
-                <td class="px-6 py-4">
-                    <div class="font-bold text-gray-800">${v.nombre} ${v.apellido || ''}</div>
-                </td>
-                <td class="px-6 py-4 text-gray-600 font-mono text-xs">${v.rut}</td>
-                <td class="px-6 py-4 text-gray-500 italic text-xs max-w-[200px] truncate" title="${v.motivo}">${v.motivo}</td>
-                <td class="px-6 py-4">
-                    <span class="${badgeClass} px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 w-fit">
-                        ${iconEstado} ${v.estado.replace('_', ' ')}
-                    </span>
-                </td>
-                <td class="px-6 py-4 text-sm text-gray-600">
-                    <div class="flex flex-col">
-                        <span class="font-bold">${v.fecha}</span>
-                        <span class="text-xs text-gray-400">${hora}</span>
-                    </div>
-                </td>
-            </tr>
-        `;
-        tabla.innerHTML += row;
+    chartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: ["Visitas Hoy", "Activas", "Finalizadas"],
+            datasets: [{
+                label: 'Cantidad',
+                data: [hoy, activas, finalizadas],
+                backgroundColor: [
+                    "rgba(255, 146, 240, 0.7)", 
+                    "rgba(34, 197, 94, 0.7)",  
+                    "rgba(107, 114, 128, 0.7)" 
+                ],
+                borderColor: [
+                    "rgba(255, 146, 240, 0.7)",
+                    "rgb(34, 197, 94)",
+                    "rgb(107, 114, 128)"
+                ],
+                borderWidth: 2,
+                borderRadius: 8,
+                barThickness: 50
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: 'Estadísticas en Tiempo Real'
+                }
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeOutQuart'
+            },
+            scales: { 
+                y: { 
+                    beginAtZero: true,
+                    grid: { color: '#f3f4f6' },
+                    ticks: { stepSize: 1 }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
     });
 }
 
-function mostrarPanelDatos() {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-        document.getElementById('login-section').classList.add('hidden');
-        document.getElementById('data-section').classList.remove('hidden');
-        document.getElementById('data-section').classList.remove('opacity-0', 'translate-y-4');
-        document.getElementById('token-display').innerText = `Key: ${token.substring(0, 15)}...${token.substring(token.length-5)}`;
-        
-        cargarVisitas();
-    }
-}
-
-function cerrarSesion() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    location.reload();
-}
-
 document.addEventListener("DOMContentLoaded", () => {
-    if (localStorage.getItem('access_token')) {
-        mostrarPanelDatos();
-    } else {
-        document.getElementById('login-section').classList.remove('opacity-0');
-    }
-
     const style = document.createElement('style');
     style.innerHTML = `
         .spin-anim { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     `;
     document.head.appendChild(style);
+
+    if (localStorage.getItem("access_token")) {
+        mostrarPanelDatos();
+    } else {
+        const loginSection = document.getElementById('login-section');
+        if (loginSection) loginSection.classList.remove('opacity-0');
+    }
 });
