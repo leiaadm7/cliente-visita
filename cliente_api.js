@@ -34,6 +34,7 @@ async function obtenerToken() {
     } catch (e) {
         msgLabel.innerText = "Error de conexión.";
         msgLabel.className = "text-red-600";
+        console.error(e);
     }
 }
 
@@ -56,7 +57,6 @@ function cerrarSesion() {
     location.reload();
 }
 
-// Cargar visitas + métricas + gráfico 
 async function cargarVisitas() {
     const token = localStorage.getItem("access_token");
     const tabla = document.getElementById("tabla-body");
@@ -81,8 +81,8 @@ async function cargarVisitas() {
 
         lista.forEach(v => {
             if (v.fecha === hoy) totalHoy++;
-            if (v.estado === "ACTIVA") activas++;
-            if (v.estado === "FINALIZADA") finalizadas++;
+            if (v.estado.toLowerCase() === "en proceso") activas++;
+            if (v.estado.toLowerCase() === "finalizada") finalizadas++;
 
             tabla.innerHTML += `
                 <tr class="hover:bg-pink-50 transition">
@@ -94,14 +94,13 @@ async function cargarVisitas() {
                 </tr>
             `;
         });
-        actualizarDashboard(lista);
-        
-        // Poner métricas
+
+        // Métricas
         document.getElementById("total-hoy").innerText = totalHoy;
         document.getElementById("total-activas").innerText = activas;
         document.getElementById("total-finalizadas").innerText = finalizadas;
 
-        // Gráfico
+        // Gráfico actualizado
         actualizarGrafico(totalHoy, activas, finalizadas);
 
     } finally {
@@ -112,6 +111,11 @@ async function cargarVisitas() {
 function actualizarGrafico(hoy, activas, finalizadas) {
 
     const ctx = document.getElementById("chartVisitas");
+
+    if (!ctx) {
+        console.error("❌ No se encontró el elemento #chartVisitas");
+        return;
+    }
 
     if (chartInstance) {
         chartInstance.destroy();
@@ -129,14 +133,11 @@ function actualizarGrafico(hoy, activas, finalizadas) {
         },
         options: {
             plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true }
-            }
+            scales: { y: { beginAtZero: true } }
         }
     });
 }
 
-// Auto iniciar si ya hay token
 document.addEventListener("DOMContentLoaded", () => {
     if (localStorage.getItem("access_token")) {
         mostrarPanelDatos();
