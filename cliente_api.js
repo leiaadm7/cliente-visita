@@ -94,7 +94,8 @@ async function cargarVisitas() {
                 </tr>
             `;
         });
-
+        actualizarDashboard(lista);
+        
         // Poner métricas
         document.getElementById("total-hoy").innerText = totalHoy;
         document.getElementById("total-activas").innerText = activas;
