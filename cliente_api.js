@@ -5,8 +5,9 @@ let chartInstance = null;
 async function obtenerToken() {
     const usernameInput = document.getElementById("api-username");
     const passwordInput = document.getElementById("api-password");
-    
+
     if (!usernameInput || !passwordInput) return;
+
     const username = usernameInput.value;
     const password = passwordInput.value;
 
@@ -34,7 +35,6 @@ async function obtenerToken() {
         localStorage.setItem("refresh_token", data.refresh);
 
         mostrarMensajeLogin("¡Bienvenido! Cargando panel...", "text-emerald-500 font-bold");
-
         setTimeout(mostrarPanelDatos, 800);
 
     } catch (e) {
@@ -53,7 +53,6 @@ function mostrarMensajeLogin(texto, claseColor) {
 
 function mostrarPanelDatos() {
     const token = localStorage.getItem("access_token");
-
     if (token) {
         const loginSec = document.getElementById("login-section");
         const dataSec = document.getElementById("data-section");
@@ -65,12 +64,6 @@ function mostrarPanelDatos() {
                 dataSec.classList.remove('opacity-0', 'translate-y-4');
             }, 50);
         }
-
-        const tokenDisplay = document.getElementById("token-display");
-        if (tokenDisplay) {
-            tokenDisplay.innerText = `Sesión Segura • ID: ${token.substring(0, 8)}...`;
-        }
-
         cargarVisitas();
     }
 }
@@ -98,7 +91,7 @@ async function cargarVisitas() {
         });
 
         if (res.status === 401) {
-            alert("Tu sesión ha expirado. Ingresa nuevamente.");
+            alert("Tu sesión ha expirado.");
             cerrarSesion();
             return;
         }
@@ -106,8 +99,10 @@ async function cargarVisitas() {
         const data = await res.json();
         const lista = Array.isArray(data) ? data : data.results || [];
 
-        const hoy = new Date();
-        const hoyStr = hoy.toISOString().split("T")[0];
+        const ahora = new Date();
+        const hoyLocal = ahora.toLocaleDateString('en-CA');
+        
+        document.getElementById("fecha-hoy").innerText = hoyLocal;
 
         let totalHoy = 0;
         let activas = 0;
@@ -122,55 +117,51 @@ async function cargarVisitas() {
         }
 
         lista.forEach(v => {
-            const fechaVisita = v.fecha ? v.fecha.split("T")[0] : ""; 
-            if (fechaVisita === hoyStr) {
+            if (v.fecha === hoyLocal) {
                 totalHoy++;
             }
 
             const tieneSalida = v.hora_salida !== null && v.hora_salida !== "";
-            const estadoTexto = v.estado ? v.estado.trim().toUpperCase() : "";
-            const esFinal = (tieneSalida || estadoTexto.includes("FINAL"));
-
-            if (esFinal) {
+            
+            if (tieneSalida) {
                 finalizadas++;
             } else {
                 activas++;
             }
 
             if (tabla) {
-                const entrada = v.hora_entrada ? new Date(v.hora_entrada).toLocaleString() : "-";
-                
-                let salidaHTML = '<span class="text-pink-400 font-medium italic">Pendiente</span>';
-                if (tieneSalida) {
-                    salidaHTML = `<span class="text-gray-600">${new Date(v.hora_salida).toLocaleString()}</span>`;
-                }
+                const formatTime = (isoString) => {
+                    if (!isoString) return "-";
+                    return new Date(isoString).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                };
 
-                const estadoStyle = esFinal
-                    ? 'bg-gray-100 text-gray-500 border border-gray-200' 
-                    : 'bg-emerald-100 text-emerald-600 font-bold border border-emerald-200';
-                
-                const iconoEstado = esFinal
-                    ? '<i class="bi bi-check2-circle"></i>'
-                    : '<i class="bi bi-activity animate-pulse"></i>';
+                const horaEntrada = formatTime(v.hora_entrada);
+                const horaSalida = tieneSalida 
+                    ? `<span class="text-gray-800 font-medium">${formatTime(v.hora_salida)}</span>`
+                    : `<span class="text-pink-400 italic text-xs bg-pink-50 px-2 py-1 rounded">Pendiente</span>`;
 
-                const textoEstado = esFinal ? "FINALIZADA" : "EN CURSO";
+                const estadoBadge = tieneSalida
+                    ? `<span class="bg-gray-100 text-gray-500 border border-gray-200 px-3 py-1 rounded-full text-xs flex items-center gap-1.5 w-fit">
+                         <i class="bi bi-check2-circle"></i> Finalizada
+                       </span>`
+                    : `<span class="bg-emerald-100 text-emerald-600 border border-emerald-200 font-bold px-3 py-1 rounded-full text-xs flex items-center gap-1.5 w-fit">
+                         <i class="bi bi-activity animate-pulse"></i> En Curso
+                       </span>`;
 
                 tabla.innerHTML += `
-                    <tr class="hover:bg-pink-50/50 transition border-b border-gray-50 group">
+                    <tr class="hover:bg-pink-50/60 transition border-b border-gray-50 last:border-0 group">
                         <td class="px-6 py-4 font-mono text-xs text-gray-400 group-hover:text-pink-400">#${v.id}</td>
                         <td class="px-6 py-4">
-                            <div class="font-bold text-gray-800">${v.nombre} ${v.apellido || ""}</div>
-                            <div class="text-xs text-gray-400 mt-0.5 italic truncate w-32">${v.motivo || 'Sin motivo'}</div>
+                            <div class="font-bold text-gray-800 text-sm">${v.nombre} ${v.apellido || ""}</div>
                         </td>
-                        <td class="px-6 py-4 text-xs font-mono text-gray-500 bg-gray-50/50 rounded-lg w-fit h-fit my-auto px-2 py-1">${v.rut}</td>
-                        <td class="px-6 py-4 text-xs font-mono text-gray-500">${v.motivo}</td>
-                        <td class="px-6 py-4">
-                            <span class="${estadoStyle} px-3 py-1 rounded-full text-xs flex items-center gap-1.5 w-fit shadow-sm">
-                                ${iconoEstado} ${textoEstado}
-                            </span>
+                        <td class="px-6 py-4 text-xs font-mono text-gray-500">${v.rut}</td>
+                        <td class="px-6 py-4 text-xs text-gray-500 truncate max-w-[150px]" title="${v.motivo}">${v.motivo}</td>
+                        <td class="px-6 py-4">${estadoBadge}</td>
+                        <td class="px-6 py-4 text-right text-xs text-gray-600 font-mono">
+                            <div>${v.fecha}</div>
+                            <div class="text-gray-400">${horaEntrada}</div>
                         </td>
-                        <td class="px-6 py-4 text-xs text-gray-600 font-mono whitespace-nowrap">${entrada}</td>
-                        <td class="px-6 py-4 text-xs font-mono whitespace-nowrap">${salidaHTML}</td>
+                        <td class="px-6 py-4 text-right text-xs text-gray-600 font-mono">${horaSalida}</td>
                     </tr>
                 `;
             }
@@ -218,7 +209,7 @@ function actualizarGrafico(hoy, activas, finalizadas) {
                 label: 'Cantidad',
                 data: [hoy, activas, finalizadas],
                 backgroundColor: [
-                    gradientPink,
+                    gradientPink,              
                     "rgba(16, 185, 129, 0.7)",
                     "rgba(156, 163, 175, 0.7)"
                 ],
@@ -235,35 +226,16 @@ function actualizarGrafico(hoy, activas, finalizadas) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { 
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    titleColor: '#1f2937',
-                    bodyColor: '#db2777',
-                    borderColor: '#fbcfe8',
-                    borderWidth: 1,
-                    padding: 12,
-                    titleFont: { size: 14 },
-                    bodyFont: { size: 14 },
-                    displayColors: false
-                }
-            },
+            plugins: { legend: { display: false } },
             scales: { 
                 y: { 
                     beginAtZero: true,
                     grid: { color: '#fdf2f8' },
-                    ticks: { stepSize: 1, color: '#9ca3af' },
-                    border: { display: false }
+                    ticks: { stepSize: 1 }
                 },
                 x: {
-                    grid: { display: false },
-                    ticks: { color: '#6b7280', font: { weight: 'bold' } }
+                    grid: { display: false }
                 }
-            },
-            animation: {
-                duration: 1000,
-                easing: 'easeOutQuart'
             }
         }
     });
@@ -271,10 +243,7 @@ function actualizarGrafico(hoy, activas, finalizadas) {
 
 document.addEventListener("DOMContentLoaded", () => {
     const style = document.createElement('style');
-    style.innerHTML = `
-        .spin-anim { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    `;
+    style.innerHTML = `.spin-anim { animation: spin 1s linear infinite; } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
     document.head.appendChild(style);
 
     if (localStorage.getItem("access_token")) {
